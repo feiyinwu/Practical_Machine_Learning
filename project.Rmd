@@ -72,7 +72,7 @@ library(rattle)
 fancyRpartPlot(modDT)
 ```
 
-Predict the "classe" on the training set with the decision tree model to get the in sample error.The accuracy rate is 0.865.
+Predict the "classe" on the training set with the decision tree model to get the in sample accuracy.The accuracy rate is 0.865. The expected out-of-sample error would be 0.15 based on the in sample accuracy rate.
 ```{r DT in sample prediction}
 predDTTrain <- predict(modDT, training, type="class")
 confusionMatrix(predDTTrain, training$classe)  # 0.865
@@ -96,7 +96,7 @@ modRF <- randomForest(classe~., data=training, ntree=5)
 modRF
 ```
 
-Predict the "classe" on the training set with the random forest model.The in sample accuracy rate is 0.9994, much better than the decision tree model.
+Predict the "classe" on the training set with the random forest model.The in sample accuracy rate is 0.9994, much better than the decision tree model. The expected out-of-sample error would be less than 0.01 based on the in-sample accuracy rate.
 ```{r RF In sample prediction}
 predRFTrain <- predict(modRF, training)
 confusionMatrix(predRFTrain, training$classe) #0.9994

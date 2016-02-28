@@ -1,0 +1,121 @@
+---
+title: "Practical Machine Learning Project"
+author: "Feiyin Wu"
+date: "February 27, 2016"
+output: html_document
+---
+# Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+# Goal
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+
+# Data Cleaning
+## Load in data
+```{r load in data}
+setwd("~/Documents/Coursera/Practical Machine Learning")
+library(caret)
+library(plyr)
+pmlTraining <- read.csv("pml-training.csv")
+pmlTraining$dataset <- "1"
+pmlTesting <- read.csv("pml-testing.csv")
+pmlTesting$dataset <- "0"
+pmlTesting <- rename(pmlTesting, c("problem_id"="classe"))
+pml <- rbind(pmlTraining,pmlTesting)
+pml <- pml[,-1]
+```
+In order to be consistent between train and test sets for future prediction, we bind the train and test data sets together to process the basic cleaning.
+
+
+## Data Cleaning
+Remove the variables with NAs and split the data back into train and test sets.
+```{r cleaning}
+# Detect NAs
+names(pml)
+variables <- names(pml[, colSums(is.na(pml)) == 0])
+
+# Keep the variables without NAs and "classe" variable
+pmlNew <- pml[,c(variables,"classe")]
+dim(pmlNew)
+
+# Split back into train and test sets
+pmlTrainingNew <- subset(pmlNew, dataset=="1")
+pmlTrainingNew <- pmlTrainingNew[,-59]
+pmlTestingNew <- subset(pmlNew, dataset=="0")
+pmlTestingNew <- pmlTestingNew[,-c(59,60)]
+```
+
+## Cross Validation Prep
+Further split the train set into 60% training part and 40% testing part for cross validation.
+```{r split dataset}
+set.seed(10000)
+inTrain <- createDataPartition(y=pmlTrainingNew$classe, p=0.6, list=F)
+training <- pmlTrainingNew[inTrain,]
+testing <- pmlTrainingNew[-inTrain,]
+dim(training)
+dim(testing)
+```
+
+
+# ML Algorithm - Decision Trees
+We first build a decision tree model on the training datasets.
+```{r Decision Trees}
+set.seed(20166)
+library(rpart)
+modDT <- rpart(classe~., data=training, method="class")
+
+# Draw the tree
+library(rattle)
+fancyRpartPlot(modDT)
+```
+
+Predict the "classe" on the training set with the decision tree model to get the in sample error.The accuracy rate is 0.865.
+```{r DT in sample prediction}
+predDTTrain <- predict(modDT, training, type="class")
+confusionMatrix(predDTTrain, training$classe)  # 0.865
+```
+
+Perform cross validation on the testing set and we have the out of sample accuracy rate at 0.8635.
+```{r DT cross validation}
+predDTTest <- predict(modDT, testing, type="class")
+confusionMatrix(predDTTest, testing$classe) # 0.8635
+```
+## Conclusion
+Decision Tree model fits the data well with 0.8635 accuracy rate on the validation set. Howver, we want to further improve the accuracy.
+
+
+# ML Algorithm - Random Forest
+To further improve the accuracy, we fit the data with a random forest model with 5 trees.
+```{r random forest}
+set.seed(20166)
+library(randomForest)
+modRF <- randomForest(classe~., data=training, ntree=5)
+modRF
+```
+
+Predict the "classe" on the training set with the random forest model.The in sample accuracy rate is 0.9994, much better than the decision tree model.
+```{r RF In sample prediction}
+predRFTrain <- predict(modRF, training)
+confusionMatrix(predRFTrain, training$classe) #0.9994
+```
+
+We then test the random forest model on the validation set and get a 0.9922 out-of-sample accuracy rate.
+```{r RF cross validation}
+predRFTest <- predict(modRF, testing)
+confusionMatrix(predRFTest, testing$classe) # 0.9922
+```
+
+## Conclusion
+The random forest model has much better performance than a single decision tree model. We're going to use the random forest model developed above to predict the 20 testing sample.
+
+
+# Prediction on the test dataset
+```{r final prediction}
+prediction <- predict(modRF, pmlTestingNew)
+prediction
+```
+
+
